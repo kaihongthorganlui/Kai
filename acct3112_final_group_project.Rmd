@@ -1,0 +1,1206 @@
+---
+title: |  
+  **A Comparison of the Top 500 US and Japanese Companies' Price-to-Book Ratio**
+author: |  
+  CHAN Tsz Ling, JOO Huijin, <br>  
+  LUI Kai Hong, WAN Tsz Chun Marco  
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    latex_engine: xelatex
+  html_document:
+    df_print: paged
+subtitle: |  
+  \vspace{0.5cm}   
+  ACCT3112 Accounting Data Management and Analytics <br>   
+  Final Project  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(dplyr)
+library(knitr)
+library(broom)
+library(readr)
+library(data.table)
+library(stringdist)
+library(janitor)
+library(RPostgres)
+library(dbplyr)
+library(ggplot2)
+library(gridExtra)
+library(patchwork)
+library(stargazer)
+library(xtable)
+library(rvest)
+library(yahoofinancer)
+library(RSelenium)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+```{r section overview, include=FALSE}
+# 1. Introduction: Thorgan
+# 2. Data Overview: Jojo & Thorgan
+# 3. Analysis: Marco, Jin, Thorgan
+# 4. Findings: Marco, Thorgan
+```
+
+# 1. Introduction
+
+## 1.1 Background
+In the realm of finance, ratio analysis is critical in evaluating a company's financial position and overall performance. Among the various financial ratios available, the price-to-book ratio, or P/B ratio, stands out as a key indicator of a company's relative valuation and attractiveness to investors.  
+
+The P/B ratio compares a firm's market capitalisation to its book value, providing insights into how the market values the company's assets. By examining the P/B ratio of different companies, investors can gain valuable information about their financial health, growth prospects, and market perception. 
+
+$$
+P/B\ Ratio = \frac{Market\ Price\ per\ Share}{Book\ Value\ per\ Share} = \frac{Market\ Capitalisation}{Total\ Book\ Value}
+$$
+
+$$
+Total\ Book\ Value\ = Total\ Assets - Intangible\ Assets - Total\ Liabilities  
+$$
+
+## 1.2 Bottom Line of the P/B Ratio 
+The implications of the P/B ratio are contingent upon whether it is equivalent to, less than, or greater than one. A ratio of one indicates a fair valuation; smaller or larger ratios could indicate undervaluation or overvaluation, respectively. 
+
+Considering industry dynamics is important as the proportion of intangible assets varies across sectors. Industries with significant intangible assets, such as technology or creative sectors, generally have lower P/B ratios. Therefore, meaningful comparisons and accurate assessments of relative valuations should be made by using the P/B ratio as a benchmark within the same industry. 
+
+## 1.3 Research Objective & Methodology
+The objective of our research is to compare the price-to-book ratio (P/B ratio) of the top 500 companies in the United States and Japan across various industrial sectors, including finance and technology. Our aim is to identify and analyse the discrepancies in P/B ratios between US and Japanese firms operating within a similar industry. 
+
+\newpage
+
+We will explore two key factors to explain these discrepancies: 
+
+* Macroeconomic Environment:   
+  We will examine the macroeconomic factors, such as interest rates, market conditions, and regulatory differences, that may contribute to variations in P/B ratios between the two countries. 
+
+* Company's Financials/Fundamentals:   
+  We will investigate a few variables, such as borrowing tendencies and trading volume, to understand how they impact the P/B ratios within each sector and country.
+
+By conducting this research, we aim to contribute to the academic understanding of the factors influencing P/B ratios and their variations between the top 500 companies in the US and Japan across different industrial sectors. Our analysis will provide valuable insights into the differences in valuations and market perceptions of these companies, focusing on specific industries.  
+
+## 1.4 Hypothesis 
+In this study, we aim to test the following null and alternative hypotheses regarding the comparison of the price-to-book ratio of the top 500 companies in the United States and Japan across various industrial sectors. 
+
+* Null Hypothesis (H0):   
+  There is no significant difference in the P/B ratios between the top 500 US and Japanese companies within the same industrial sector. This hypothesis assumes that any observed differences in the P/B ratios can be attributed to random chance or sampling variability, rather than systematic disparities between the two countries. 
+
+* Alternative Hypothesis (Ha):   
+  There is a significant difference in the P/B ratios between the top 500 US and Japanese companies within the same industrial sector. The alternative hypothesis posits that there are meaningful variations in the P/B ratios that go beyond random chance. These differences may be influenced by various factors such as macroeconomic conditions, regulatory environments, borrowing tendencies, and financial strategies, among others. 
+
+To test these hypotheses, we will collect data on the P/B ratios of the top 500 US and Japanese companies. By conducting statistical analysis and comparing the P/B ratios within each industry, we will assess whether there is sufficient evidence to support the alternative hypothesis or if we fail to reject the null hypothesis due to insufficient evidence. 
+
+\newpage
+
+# 2. Data Overview
+
+## 2.1 Data Collection
+This paper utilized a quantitative methodology for data collection, which involves systematically amassing information for around 1000 listed companies. These companies include all stock components from the S&P500 in the US stock market and the top 500 Japanese stocks based on market capitalization. 
+
+Non-calculative information, for instance, stock tickers, respective company names and sectors, was extracted from independent websites. Subsequently, this data was subjected to scrapping techniques for further analysis. Given the substantial amount of numeric data required, minimizing potential variations or discrepancies in collecting this information while maintaining comparability across datasets is crucial. 
+
+Consequently, financial data of individual US and Japanese stocks, including the P/B ratio, total assets, debt, and average trading volume, was exclusively sourced from Yahoo Finance. The above involved constructing specific URLs for each company and parsing through the HTML elements of the corresponding web pages. Separate datasets for US and Japanese stocks were generated and merged with the previously acquired non-numeric data using companies' tickers as identifiers. 
+
+Once all necessary data had been collected, cleaned and organized for both US and Japanese stocks, debt ratios were computed by dividing each company's debt by its total assets, where the calculation enabled an evaluation of the financial leverage of each entity within the sample. 
+
+*Note: Due to its length, the code for the data collection process is not included in this response. Please refer to Appendix 1 for a more detailed understanding of the code and its role in collecting and preparing the data.*
+
+```{r, eval=FALSE, echo=FALSE}
+# Getting the Components of S&P 500
+
+link_1 <- "https://www.slickcharts.com/sp500"
+page_1 <- read_html(link_1)
+
+US_Companies <- page_1 %>% 
+  html_nodes(".col-lg-7 td:nth-child(2) a") %>% 
+  html_text()
+US_Tickers <- page_1 %>% 
+  html_nodes("td~ td+ td a") %>% 
+  html_text()
+
+US_URL <- paste(
+  "https://finance.yahoo.com/quote/",
+  US_Tickers,
+  "/key-statistics?p=",
+  US_Tickers, 
+  sep = ""
+)
+
+US_URL_TV <- paste(
+  "https://finance.yahoo.com/quote/",
+  US_Tickers,
+  "?p=",
+  US_Tickers,
+  "&.tsrc=fin-srch", 
+  sep = ""
+)
+
+US_URL_DEBT_ASSET <- paste(
+  "https://finance.yahoo.com/quote/",
+  US_Tickers,
+  "/balance-sheet?p=",
+  US_Tickers,
+  sep = ""
+)
+
+PB_RATIO <- function(URL) {
+  page <- read_html(URL)
+  
+  pbs <- page %>%
+    html_nodes("td:contains('Price/Book (mrq)') + td") %>%
+    html_text()
+  
+  if (length(pbs) == 0) {
+    return("N/A")
+  } else {
+    return(pbs)
+  }
+}
+
+Average_TV <- function(URL) {
+  page <- read_html(URL)
+  
+  atv <- page %>%
+    html_nodes("td:contains('Avg. Volume') + td") %>%
+    html_text()
+  
+  if (length(atv) == 0) {
+    return("N/A")
+  } else {
+    return(atv)
+  }
+}
+
+Debt <- function(URL) {
+  page <- read_html(URL)
+  
+  total_debt <- page %>% 
+    html_nodes("div:contains('Total Debt') + div") %>%
+    html_text() %>% .[2]
+  
+  if (length(total_debt) == 0) {
+    return("N/A")
+  } else {
+    return(total_debt)
+  }
+}
+
+Asset <- function(URL) {
+  page <- read_html(URL)
+  
+  total_asset <- page %>% 
+    html_nodes("div:contains('Total Asset') + div") %>%
+    html_text() %>% .[2]
+  
+  if (length(total_asset) == 0) {
+    return("N/A")
+  } else {
+    return(total_asset)
+  }
+}
+
+PB_FINAL_US <- sapply(US_URL, FUN = PB_RATIO)
+TV_FINAL_US <- sapply(US_URL_TV, FUN = Average_TV)
+DEBT_FINAL_US <- sapply(US_URL_DEBT_ASSET, FUN = Debt)
+ASSET_FINAL_US <- sapply(US_URL_DEBT_ASSET, FUN = Asset)
+
+SNP500 <- data.frame(
+  US_Companies = US_Companies,
+  US_Tickers = US_Tickers,
+  US_URL = US_URL,
+  PB_FINAL_US = PB_FINAL_US,
+  TV_FINAL_US = TV_FINAL_US,
+  DEBT_FINAL_US = DEBT_FINAL_US,
+  ASSET_FINAL_US = ASSET_FINAL_US,
+  stringsAsFactors = FALSE
+) 
+
+row.names(SNP500) <- NULL
+```
+
+```{r, eval=FALSE, echo=FALSE}
+# Update the Components of S&P 500
+SNP500$PB_FINAL_US[8] <- "1.43"
+SNP500$TV_FINAL_US[8] <- "3,145,028"
+SNP500$DEBT_FINAL_US [8] <- "122,744,000"
+SNP500$ASSET_FINAL_US [8] <- "948,452,000"
+SNP500$PB_FINAL_US[438] <- "8.47"
+SNP500$TV_FINAL_US[438] <- "1,575,362"
+SNP500$DEBT_FINAL_US [438] <- "2,913,000"
+SNP500$ASSET_FINAL_US [438] <- "7,777,000"
+```
+
+```{r, eval=FALSE, echo=FALSE}
+link_3 <- "https://www.liberatedstocktrader.com/sp-500-companies-list-by-sector-market-cap/"
+page_3 <- read_html(link_3)
+
+US_Tickers <- page_3 %>% 
+  html_nodes("tr+ tr td:nth-child(1)") %>% 
+  html_text()
+
+US_COMP_SEC <- page_3 %>% 
+  html_nodes("tr+ tr td:nth-child(3)") %>% 
+  html_text()
+
+US_TICK_SEC <- data.frame(US_Tickers, US_COMP_SEC)
+```
+
+```{r, eval=FALSE,echo=FALSE}
+US_DATA <- left_join(SNP500, US_TICK_SEC) %>% 
+  select(US_Companies, US_Tickers,PB_FINAL_US, TV_FINAL_US, DEBT_FINAL_US, 
+         ASSET_FINAL_US, US_COMP_SEC) %>% 
+  rename("PB_Ratio" = "PB_FINAL_US",
+         "Average_Trading_Volume" = "TV_FINAL_US",
+         "Total_Debt" = "DEBT_FINAL_US",
+         "Total_Asset" = "ASSET_FINAL_US",
+         "Sector" = "US_COMP_SEC") %>% 
+  mutate(across(c("PB_Ratio","Average_Trading_Volume","Total_Debt", "Total_Asset"),
+                ~as.numeric(gsub(",", "", .)))) %>% 
+  mutate("Debt_Ratio" = Total_Debt / Total_Asset) %>% 
+  select(US_Tickers, US_Companies, Sector, PB_Ratio,
+         Average_Trading_Volume, Total_Debt, 
+         Total_Asset, Debt_Ratio)
+```
+
+```{r, eval=FALSE,echo=FALSE}
+JP_Tickers_File <- read_csv("JP_TICKERs_new.csv") %>% 
+  select("COMPANY NAME", "TICKER", "JP_COMSEC") %>% 
+  na.omit() 
+
+JP_URL <- JP_Tickers_File%>% 
+  mutate(JP_URL = 
+           JP_URL <- paste(
+  "https://finance.yahoo.com/quote/",
+  TICKER,
+  ".T/key-statistics?p=",
+  TICKER,".T",
+  sep = "")) %>% select(JP_URL)
+
+JP_Companies <- JP_Tickers_File %>% pull(`COMPANY NAME`)
+JP_Tickers <- JP_Tickers_File %>% pull(`TICKER`)
+JP_COMP_SEC <- JP_Tickers_File %>% pull(`JP_COMSEC`)
+
+PB_RATIO <- function(URL) {
+  page <- read_html(URL)
+  
+  pbs <- page %>%
+    html_nodes("td:contains('Price/Book (mrq)') + td") %>%
+    html_text()
+  
+  if (length(pbs) == 0) {
+    return("N/A")
+  } else {
+    return(pbs)
+  }
+}
+
+JP_URL <- JP_Tickers_URL %>% pull(JP_URL)
+
+JP_URL_TV <- paste(
+  "https://finance.yahoo.com/quote/",
+  JP_Tickers,
+  ".T?p=",
+  JP_Tickers,
+  ".T", 
+  sep = ""
+)
+
+JP_URL_DEBT_ASSET <- paste(
+  "https://finance.yahoo.com/quote/",
+  JP_Tickers,
+  ".T/balance-sheet?p=",
+  JP_Tickers,".T",
+  sep = ""
+)
+
+PB_FINAL_JP <- sapply(JP_URL, FUN = PB_RATIO)
+TV_FINAL_JP <- sapply(JP_URL_TV, FUN = Average_TV)
+DEBT_FINAL_JP <- sapply(JP_URL_DEBT_ASSET, FUN = Debt)
+Asset_FINAL_JP <- sapply(JP_URL_DEBT_ASSET, FUN = Asset)
+
+
+JP_FULLSTOCK <- data.frame(
+  JP_Companies = JP_Companies,
+  JP_Tickers = JP_Tickers,
+  PB_FINAL_JP = PB_FINAL_JP,
+  JP_COMP_SEC = JP_COMP_SEC,
+  TV_FINAL_JP = TV_FINAL_JP,
+  DEBT_FINAL_JP = DEBT_FINAL_JP,
+  Asset_FINAL_JP = Asset_FINAL_JP,
+  stringsAsFactors = FALSE
+) 
+
+row.names(JP_FULLSTOCK) <- NULL
+```
+
+```{r, eval=FALSE,echo=FALSE}
+JP_DATA <- JP_FULLSTOCK %>% 
+  select(JP_Companies, JP_Tickers,PB_FINAL_JP, TV_FINAL_JP, DEBT_FINAL_JP, 
+         Asset_FINAL_JP, JP_COMP_SEC) %>% 
+  rename("PB_Ratio" = "PB_FINAL_JP",
+         "Average_Trading_Volume" = "TV_FINAL_JP",
+         "Total_Debt" = "DEBT_FINAL_JP",
+         "Total_Asset" = "Asset_FINAL_JP",
+         "Sector" = "JP_COMP_SEC") %>% 
+  mutate(across(c("PB_Ratio","Average_Trading_Volume","Total_Debt", "Total_Asset"),
+                ~as.numeric(gsub(",", "", .)))) %>% 
+  mutate("Debt_Ratio" = Total_Debt / Total_Asset) %>% 
+  select(JP_Tickers, JP_Companies, Sector, PB_Ratio,
+         Average_Trading_Volume, Total_Debt, 
+         Total_Asset, Debt_Ratio)
+```
+
+```{r, echo=FALSE}
+JP_Data <- read.csv('~/JP_DATA.csv')
+US_Data <- read.csv('~/US_DATA.csv')
+```
+
+## 2.2 Data Cleaning
+
+In the data cleaning process, missing values and incorrect sector classifications were addressed to improve the accuracy of the dataset. For the "US_Data" dataset, companies with missing sector values were identified and updated based on specific conditions. For example, "Blackstone Inc." was assigned the sector "Finance," and "Lululemon Athletica Inc." was categorized under "Consumer Non-Durables." 
+
+Furthermore, certain companies required sector reclassification. For instance, "Comcast Corp" was moved to the "Consumer Non-Durables & Services" sector, while "Boston Scientific Corp." was reassigned to "Healthcare." These data cleaning steps ensured the dataset's integrity and enhanced the reliability of subsequent analyses.
+
+```{r}
+# Example of companies missing sector value
+US_Data %>%
+  filter(is.na(Sector)) %>%
+  select(US_Companies)
+```
+
+*Note: Due to its length, part of the code for the data cleaning process is not included in this response. Please refer to Appendix 2 for a more detailed understanding of the code.*
+
+```{r, echo=FALSE}
+# Update the NA Item in Sector
+US_Data <- US_Data %>%
+  mutate(
+    Sector = case_when(
+      is.na(Sector) & US_Companies %in% c("Blackstone Inc.") ~ "Finance",
+      is.na(Sector) &
+        US_Companies %in% c("Lululemon Athletica Inc.") ~ "Consumer Non-Durables",
+      is.na(Sector) &
+        US_Companies %in% c("Airbnb, Inc. Class A") ~ "Consumer Services",
+      is.na(Sector) &
+        US_Companies %in% c("Kenvue Inc.", "Cencora, Inc.") ~ "Health Services",
+      is.na(Sector) &
+        US_Companies %in% c("Veralto Corporation") ~ "Technology Services",
+      is.na(Sector) &
+        US_Companies %in% c("Hubbell Incorporated") ~ "Electronic Technology",
+      TRUE ~ as.character(Sector)
+    )
+  )
+```
+
+```{r, echo=FALSE}
+## Reclassify the Sector
+US_Data <- US_Data %>%
+  mutate(
+    Sector = case_when(
+      Sector %in% c("Energy Minerals") ~ "Energy",
+      Sector %in% c(
+        "Consumer Non-Durables",
+        "Consumer Services",
+        "Distribution Services"
+      ) ~ "Consumer Non-Durables & Services",
+      Sector %in% c("Finance") ~ "Financial Services & Real Estate Management",
+      Sector %in% c("Health Services", "Health Technology") ~ "Healthcare",
+      Sector %in% c("Technology Services", "Electronic Technology") ~ "Technology",
+      Sector %in% c(
+        "Industrial Services",
+        "Non-Energy Minerals",
+        "Process Industries",
+        "Producer Manufacturing"
+      ) ~ "Industrial Manufacturing & Processing",
+      Sector %in% c("Commercial Service") ~ "Commercial Services",
+      TRUE ~ as.character(Sector)
+    )
+  )
+
+US_Data <- US_Data %>%
+  mutate(Sector = ifelse(
+    US_Companies == "Comcast Corp",
+    "Consumer Non-Durables & Services",
+    ifelse(
+      US_Companies == "Boston Scientific Corp.",
+      "Healthcare",
+      ifelse(
+        US_Companies == "Cardinal Health, Inc",
+        "Healthcare",
+        ifelse(
+          US_Companies == "Genuine Parts Company",
+          "Industrial Manufacturing & Processing",
+          Sector)))))
+```
+
+```{r,echo=FALSE}
+## Typo
+JP_Data <- JP_Data %>%
+  mutate(
+    Sector = case_when(
+      Sector == "Heathcare" ~ "Healthcare",
+      Sector == "Teleom" ~ "Telecom",
+      Sector == "real Estate" ~ "Real Estate",
+      TRUE ~ Sector
+    )
+  )
+
+## Reclassify the Sector
+JP_Data <- JP_Data %>%
+  mutate(
+    Sector = case_when(
+      Sector %in% c("Banks", "Diversified Financials", "Insurance") ~ 
+        "Financial Services & Real Estate Management",
+      Sector %in% c("Telecom") ~ "Communications",
+      Sector %in% c("Automobiles") ~ "Consumer Durables",
+      Sector %in% c(
+        "Consumer Retail",
+        "Consumer Service",
+        "Food, Beverage, Tobacco",
+        "Media",
+        "Household"
+      ) ~ "Consumer Non-Durables & Services",
+      Sector %in% c("Finance", "Real Estate", "Real Estate Management") ~ 
+        "Financial Services & Real Estate Management",
+      Sector %in% c("Pharmaceuticals") ~ "Healthcare",
+      Sector %in% c("Tech", "Software", "Semicomductors") ~ "Technology",
+      Sector %in% c("Capital Goods", "Materials") ~ "Industrial Manufacturing & Processing",
+      Sector %in% c("Retail") ~ "Retail Trade",
+      Sector %in% c("Commercial Service") ~ "Commercial Services",
+      TRUE ~ as.character(Sector)
+    )
+  )
+
+JP_Data <- JP_Data %>%
+  mutate(Sector = ifelse(
+    JP_Companies == "Aisin",
+    "Industrial Manufacturing & Processing",
+    ifelse(
+      JP_Companies == "DENSO",
+      "Industrial Manufacturing & Processing",
+      ifelse(
+        JP_Companies == "Bridgestone",
+        "Industrial Manufacturing & Processing",
+        ifelse(
+          JP_Companies == "Sekisui Chemical",
+          "Industrial Manufacturing & Processing",
+          ifelse(
+            JP_Companies == "Sumitomo Forestry",
+            "Industrial Manufacturing & Processing",
+            ifelse(
+              JP_Companies == "Koito Manufacturing",
+              "Industrial Manufacturing & Processing",
+              ifelse(
+                JP_Companies == "Niterra",
+                "Industrial Manufacturing & Processing",
+                ifelse(
+                  JP_Companies == "Yokohama Rubbber Company",
+                  "Industrial Manufacturing & Processing",
+                  ifelse(
+                    JP_Companies == "Sumitomo Rubber Industries",
+                    "Industrial Manufacturing & Processing",
+                    ifelse(
+                      JP_Companies == "Toyo Tire",
+                      "Industrial Manufacturing & Processing",
+                      ifelse(
+                        JP_Companies == "Deccente",
+                        "Consumer Non-Durables & Services",
+                        ifelse(
+                          JP_Companies == "Rohto Pharmaceutical",
+                          "Healthcare",
+                          ifelse(
+                            JP_Companies == "BayCurrent Consulting",
+                            "Financial Services & Real Estate Management",
+                            ifelse(
+                              JP_Companies == "COSMOS Pharmaceutical",
+                              "Healthcare",
+                              ifelse(JP_Companies == "Kobayashi Phamaceutical", 
+                                     "Healthcare", Sector))))))))))))))))
+```
+
+\newpage
+
+# 3. P/B Ratio Discrepancy Analysis
+
+## 3.1 Macroeconomic Analysis
+
+```{r Macro-analysis}
+count <- is.na(US_Data$PB_Ratio)
+length(count[count == TRUE])
+```
+
+```{r}
+# There are 29 US tickers with NA PB_Ratio which I decided to drop it altogether 
+# since I can reasonably assume that they would not influence our analysis going forward
+# US_Data %>% filter(is.na(PB_Ratio))
+US_Data_cleaned <- US_Data %>% drop_na(PB_Ratio)
+```
+
+```{r}
+mean(US_Data_cleaned$PB_Ratio)
+mean(JP_Data$PB_Ratio)
+```
+
+From above, the average P/B Ratio of US firms is 8.69 whereas the average of JP firms is 2.20. The US figure is almost quadruple the JP figure, suggesting that there are potentially some major macroeconomic factors in place.
+
+### Economic Growth (GDP)
+
+In 1995, Japan's GDP was 5.449 Trillion while the United States was 7.664 Trillion. Japan’s GDP was 71% of the United States and the increasing trend of the percentage figure since the 1960s suggested that the gap was closing. Slightly more than a quarter of a century later, in 2021, Japan's GDP was 4.941 Trillion while the United States grew to 23.32 Trillion. In 2021, Japan's GDP was just 21% of the United States, a stark contrast when compared with the difference in 1995.
+
+The overall economic growth of a country, as measured by indicators such as GDP or GDP growth rate, can impact stock valuations. Economic growth typically corresponds to higher corporate profits. When an economy is expanding, businesses tend to experience increased sales, higher revenues, and improved profitability. Strong corporate earnings are a key driver of stock valuations because higher profits can translate into increased dividends or reinvestment in the company, leading to potential capital appreciation for shareholders.
+
+\newpage
+
+### Interest Rate
+
+Changes in interest rates set by central banks can influence stock valuations. Lower interest rates can make investing in stocks more attractive compared to fixed-income investments, leading to higher demand for stocks and thus potentially higher valuations. Conversely, higher interest rates can make borrowing more expensive for businesses, affecting their profitability and potentially impacting stock prices negatively.
+
+As a result of COVID-19, the Fed in the US began raising interest rates in March 2022 to curb the high inflation that came after the global health crisis. As of November 2023, the Fed kept its benchmark overnight interest rate at 5.25%-5.50%. Whereas the short-term policy interest rate in Japan is at -0.1%. This put Japan in a negative interest rate environment, effectively means that banks and other financial firms have to pay to keep their excess reserves stored at the central bank, rather than receiving positive interest income.
+
+From the above logic, it can be said that investors might be more inclined to invest in Japanese stocks as Japan's interest rate set by the central bank is far lower than that in the US. This is especially true in light of the recent US rate hike. Therefore, this should theoretically increase the average market capitalisation of Japanese firms, potentially yielding a higher average P/B Ratio for JP companies.
+
+### Foreign Investor Participation & Investor Protection
+
+Both the Japanese and US equity markets allow foreign investors to participate. However, the US market has historically been more accessible and popular among international investors due to its size, depth, and familiarity. The US market attracts substantial foreign investment, and there are minimal restrictions on foreign ownership. The Japanese equity market has made efforts to increase accessibility for foreign investors, but certain regulations and restrictions may still apply in specific sectors.
+
+In terms of investor protection, both markets have robust regulatory frameworks to protect investors and ensure fair trading practices. In the United States, the Securities and Exchange Commission (SEC) oversees the market, while in Japan, the Financial Services Agency (FSA) and the Japan Exchange Regulation (JPX-R) regulate the market. The US market has well-established investor protection measures, and its regulatory system is often seen as more comprehensive and stringent compared to Japan.
+
+The fact that the US equity market has historically been more accessible to international investors and has a more robust investor protection mechanism in place suggests that it should attract more investment as well as overall liquidity compared to the JP equity market. Both of which help increase companies' stock prices.
+
+```{r Liquidity Comparison}
+mean(US_Data$Average_Trading_Volume)
+mean(JP_Data$Average_Trading_Volume)
+```
+
+From above, the average trading volume of JP companies is 2494868 while that of US companies is 4639835, almost double the JP figure. This further proves the above claim that the US equity market has much more liquidity than its counterpart.
+
+\newpage
+
+## 3.2 Sector-Specific Analysis of Average P/B Ratio
+
+To further analyse the discrepancies in P/B ratio of US and Japan, we have conducted a sector-specific analysis of both countries. From the results above, Table 1 displays the average P/B ratio of all the companies in a specific sector. Since each sector in each country have different numbers of companies, we decided to find the average P/B ratio for each sector to compare the similarities and differences.
+
+\
+```{r, echo=FALSE}
+## Average PB Ratio By Sector In 1) US
+US_average_PB <- US_Data %>%
+  group_by(Sector) %>%
+  drop_na(PB_Ratio) %>%
+  summarise('Average_PB' = mean(PB_Ratio)) %>%
+  arrange(desc(Average_PB)) 
+
+## Average PB Ratio By Sector In 2) JAPAN
+JP_average_PB <- JP_Data %>%
+  group_by(Sector) %>%
+  drop_na(PB_Ratio) %>%
+  summarise('Average_PB' = mean(PB_Ratio)) %>%
+  arrange(desc(Average_PB))
+
+## Merge Table Average PB Ratio By Sector
+merged_USJP <- merge(US_average_PB, JP_average_PB, by = 'Sector') %>%
+  arrange(desc(Average_PB.x))
+col_names <- c("Sector", "US P/B Ratio", "JP P/B Ratio")
+merged_USJP %>%  kable(caption = 'Average P/B Ratio Across Sectors', 
+                       digits = 3,
+                       booktabs = TRUE,
+                       format.args = list(big.mark = ','), linesep = '',
+                       col.names = col_names)
+```
+
+\
+Firstly, the main difference seen from Table 1 is the value of the P/B ratios in US and Japan sectors. US's P/B ratios range from the lowest being 1.7 to the highest being 18.5. Japan, on the other hand, has sector average P/B ratios ranging from 0.7 to 4.2. This difference in P/B ratio between the sectors in US and Japan can be explained through the macroeconomic analysis previously mentioned. Since Japan's economic growth measured through GDP makes up only 21% of US's GDP in 2021, Japan's P/B ratio range for the sectors will definitely be lower than US's. If we compare the P/B ratio of each sector in US and Japan, it can be seen that US has higher average P/B ratios in all the sectors except Communications.
+
+Additionally, the results show that the top five sectors in both US and Japan that have the highest P/B ratio for their respective countries are: Technology, Retail Trade, Consumer Non-Durables & Services, Commercial Services and Healthcare. An industry-specific viewpoint can take place to understand why this is the case. Sectors such as technology, services and healthcare have higher amounts of intangible assets and growth resulting in higher P/B ratios while sectors such as utilities are more asset-intensive and are slower in their growth prospects leading to lower P/B ratios. 
+
+Through the comparison of sector-specific P/B ratios in US and Japan, we can conclude that almost all the sectors in US have higher average P/B values compared to the corresponding sectors in Japan which supports the viewpoint on the macroeconomic aspect that US has a higher economic growth than Japan. Moreover, the specific sectors that have higher P/B ratios in both countries can be a result of the nature of the industry. As some sectors operate with more intangible assets and are part of a high growth industry, they are more inclined to have higher P/B ratios in both US and Japan.
+
+\newpage
+Despite the significant discrepancies in P/B ratios between the US and Japan, an interesting observation is that the distribution of P/B ratios across sectors remains remarkably similar in both countries. For instance, sectors like Technology exhibit consistently high P/B ratios in both the US and Japan, while industries such as Energy and Utilities tend to have lower ratios in both countries. This suggests that despite the overall differences in average P/B ratios, there are common industry-specific trends and factors influencing the valuation of companies within each sector, transcending national boundaries. The similarity in distribution highlights the importance of industry dynamics and market conditions in shaping P/B ratios, reinforcing the notion that sector-specific characteristics play a significant role in determining company valuations.
+
+To delve deeper into the factors influencing P/B ratios, a regression analysis will be conducted to investigate the impact of financials/fundamentals such as assets, liabilities, and market volume on the P/B ratio within each industry. This analysis aims to uncover how these variables contribute to the observed disparities in valuation within and across industries. By quantifying their influence, we can gain valuable insights into the underlying dynamics driving P/B ratio discrepancies between the US and Japan.
+
+*Note: See Appendix 3 for detailed code written for the construction of the table and plot of the sector-specific analysis.*
+
+\
+\
+```{r,echo=FALSE}
+JP_plot <- ggplot(data = JP_average_PB, aes(x = Average_PB, y = Sector, fill = Sector)) +
+  geom_bar(stat = "identity") + 
+  labs(x = "Average P/B Ratio in Japan", y = "Sector") +
+  theme(legend.position = "none") 
+
+US_plot <- ggplot(data = US_average_PB, aes(x = Average_PB, y = Sector, fill = Sector)) +
+  geom_bar(stat = "identity") + 
+  labs(x = "Average P/B Ratio in US", y = "Sector") +
+  theme(legend.position = "none")
+
+JP_plot / US_plot + plot_layout(guides = 'collect')
+```
+
+
+\newpage
+
+## 3.3 Regression Analysis Explaining the Sectoral Disparities in P/B Ratio
+
+In order to gain a more comprehensive understanding of the factors influencing P/B ratios within the countries and sectors, a linear regression analysis was conducted. This analysis aimed to explore the impact of company financials/fundamentals, including Total Assets, Total Debt, and Average Trading Volume, on the P/B ratio as the dependent variable. By examining these variables, we sought to uncover the relationships between financial indicators and valuation metrics, shedding light on the drivers of P/B ratio disparities observed between the United States (US) and Japan (JP), as well as across various industry sectors.
+
+However, the regression analyses conducted on both US and Japanese companies consistently demonstrate that company fundamentals, including total assets, total debt, and average trading volume, are predominantly statistically insignificant predictors of the P/B Ratio across various sectors. This suggests a general trend where these financial variables do not significantly influence the P/B Ratio in the examined markets. 
+
+Noteworthy exceptions, however, emerge in certain sectors. In the US, the retail trade and consumer durables sector stand out as rare cases where these variables exhibit significance. Similarly, in Japan, exceptions are observed in the consumer durables and commercial services sector. 
+
+```{r, echo=FALSE, results='hide'}
+## Run Regression - US by sector
+US_sector_models <- US_Data %>%
+  group_by(Sector) %>%
+  nest() %>%
+  mutate(
+    model = map(data, ~lm(PB_Ratio ~ Total_Asset + Total_Debt + Average_Trading_Volume, data = .)),
+    model_summary = map(model, tidy),
+    sector_name = Sector  # Add a new column for sector name
+  ) %>%
+  select(sector_name, model_summary) %>%
+  mutate(
+    model_summary = map2(sector_name, model_summary, ~mutate(.y, p.value = sprintf("%.3e", p.value), Sector = .x))
+  )
+
+print(US_sector_models$model_summary)
+```
+
+```{r}
+# Example of the linear regression - US
+US_sector_models$model_summary[1:3]
+```
+
+```{r, echo=FALSE, results='hide'}
+## Run Regression - JP by sector
+JP_sector_models <- JP_Data %>%
+  group_by(Sector) %>%
+  nest() %>%
+  mutate(
+    model = map(data, ~lm(PB_Ratio ~ Total_Asset + Total_Debt + Average_Trading_Volume, data = .)),
+    model_summary = map(model, tidy),
+    sector_name = Sector  # Add a new column for sector name
+  ) %>%
+  select(sector_name, model_summary) %>%
+  mutate(
+    model_summary = map2(sector_name, model_summary, ~mutate(.y, p.value = sprintf("%.3e", p.value), Sector = .x))
+  )
+
+print(JP_sector_models$model_summary)
+```
+
+\newpage
+
+```{r}
+# Example of the linear regression - JP
+JP_sector_models$model_summary[1:3]
+```
+
+*Note: The comprehensive regression results are voluminous, and only a subset is presented here for brevity. For a detailed exploration of the intricate relationship between dependent variables (company fundamentals) and the independent variable (P/B ratio), kindly refer to the complete findings in Appendix 4.*
+
+\newpage
+
+# 4. Findings
+
+From Section 3.1, we learned that there is a stark contrast between the average P/B ratio between US and Japanese firms, where the average P/B ratio of US firms is almost quadruple the JP figure. Therefore, we explored what factors/variables might be able to explain such a discrepancy.
+
+Although the disparity in economic growth between the two countries over the past 25 years suggests that US companies should expect a higher P/B Ratio, the negative interest rate environment that Japan is currently in suggests the opposite as the cost of borrowing in Japan is significantly lower than that in the US. In light of this contradicting evidence, we decided to further compare the average P/B Ratio between the two countries for each of the 12 sectors.
+
+In Section 3.2, the sector-wise analysis further highlighted discrepancies in average P/B ratios across sectors in both countries, yet there is a striking similarity in the overall distribution. Notably, sectors such as Technology exhibited higher-than-average P/B ratios in both countries. Surprisingly, our regression analysis indicated that company fundamentals, including total assets, total debt, and average trading volume, were generally statistically insignificant predictors of the P/B ratio in both countries, with the exceptions in sectors such as Retail Trade and Consumer Durables in the US, as well as Consumer Durables and Commercial Services in Japan.
+
+As the company fundamentals that are used in this report do not seem to be able to explain the discrepancies across the sectors with reasonable assurance, it is deduced that there are other factors in play. However, as there is a consistent theme in the overall distribution of the discrepancies, it is evident that macroeconomic factors are the underlying reason. Despite the seemingly contradicting evidence from economic growth and interest rate, given the historical accessibility and strong investor protection measures of the US equity market as well as the fact that the Nikkei 225 Index remains well below its 1989 peak, we can reasonably conclude that these factors all contributed to the higher liquidity, volume, and average market capitalization of US companies, which explains the higher P/B Ratio across all sectors compared to the Japanese.
+
+\newpage
+
+# Appendix 1: Data Collection's Code
+
+```{r, eval=FALSE}
+# Getting the Components of S&P 500
+
+link_1 <- "https://www.slickcharts.com/sp500"
+page_1 <- read_html(link_1)
+
+US_Companies <- page_1 %>% 
+  html_nodes(".col-lg-7 td:nth-child(2) a") %>% 
+  html_text()
+US_Tickers <- page_1 %>% 
+  html_nodes("td~ td+ td a") %>% 
+  html_text()
+
+US_URL <- paste(
+  "https://finance.yahoo.com/quote/",
+  US_Tickers,
+  "/key-statistics?p=",
+  US_Tickers, 
+  sep = ""
+)
+
+US_URL_TV <- paste(
+  "https://finance.yahoo.com/quote/",
+  US_Tickers,
+  "?p=",
+  US_Tickers,
+  "&.tsrc=fin-srch", 
+  sep = ""
+)
+
+US_URL_DEBT_ASSET <- paste(
+  "https://finance.yahoo.com/quote/",
+  US_Tickers,
+  "/balance-sheet?p=",
+  US_Tickers,
+  sep = ""
+)
+
+PB_RATIO <- function(URL) {
+  page <- read_html(URL)
+  
+  pbs <- page %>%
+    html_nodes("td:contains('Price/Book (mrq)') + td") %>%
+    html_text()
+  
+  if (length(pbs) == 0) {
+    return("N/A")
+  } else {
+    return(pbs)
+  }
+}
+
+Average_TV <- function(URL) {
+  page <- read_html(URL)
+  
+  atv <- page %>%
+    html_nodes("td:contains('Avg. Volume') + td") %>%
+    html_text()
+  
+  if (length(atv) == 0) {
+    return("N/A")
+  } else {
+    return(atv)
+  }
+}
+
+Debt <- function(URL) {
+  page <- read_html(URL)
+  
+  total_debt <- page %>% 
+    html_nodes("div:contains('Total Debt') + div") %>%
+    html_text() %>% .[2]
+  
+  if (length(total_debt) == 0) {
+    return("N/A")
+  } else {
+    return(total_debt)
+  }
+}
+
+Asset <- function(URL) {
+  page <- read_html(URL)
+  
+  total_asset <- page %>% 
+    html_nodes("div:contains('Total Asset') + div") %>%
+    html_text() %>% .[2]
+  
+  if (length(total_asset) == 0) {
+    return("N/A")
+  } else {
+    return(total_asset)
+  }
+}
+
+PB_FINAL_US <- sapply(US_URL, FUN = PB_RATIO)
+TV_FINAL_US <- sapply(US_URL_TV, FUN = Average_TV)
+DEBT_FINAL_US <- sapply(US_URL_DEBT_ASSET, FUN = Debt)
+ASSET_FINAL_US <- sapply(US_URL_DEBT_ASSET, FUN = Asset)
+
+SNP500 <- data.frame(
+  US_Companies = US_Companies,
+  US_Tickers = US_Tickers,
+  US_URL = US_URL,
+  PB_FINAL_US = PB_FINAL_US,
+  TV_FINAL_US = TV_FINAL_US,
+  DEBT_FINAL_US = DEBT_FINAL_US,
+  ASSET_FINAL_US = ASSET_FINAL_US,
+  stringsAsFactors = FALSE
+) 
+
+row.names(SNP500) <- NULL
+```
+
+```{r, eval=FALSE}
+# Update the Components of S&P 500
+SNP500$PB_FINAL_US[8] <- "1.43"
+SNP500$TV_FINAL_US[8] <- "3,145,028"
+SNP500$DEBT_FINAL_US [8] <- "122,744,000"
+SNP500$ASSET_FINAL_US [8] <- "948,452,000"
+SNP500$PB_FINAL_US[438] <- "8.47"
+SNP500$TV_FINAL_US[438] <- "1,575,362"
+SNP500$DEBT_FINAL_US [438] <- "2,913,000"
+SNP500$ASSET_FINAL_US [438] <- "7,777,000"
+```
+
+```{r, eval=FALSE}
+link_3 <- "https://www.liberatedstocktrader.com/sp-500-companies-list-by-sector-market-cap/"
+page_3 <- read_html(link_3)
+
+US_Tickers <- page_3 %>% 
+  html_nodes("tr+ tr td:nth-child(1)") %>% 
+  html_text()
+
+US_COMP_SEC <- page_3 %>% 
+  html_nodes("tr+ tr td:nth-child(3)") %>% 
+  html_text()
+
+US_TICK_SEC <- data.frame(US_Tickers, US_COMP_SEC)
+```
+
+```{r, eval=FALSE}
+US_DATA <- left_join(SNP500, US_TICK_SEC) %>% 
+  select(US_Companies, US_Tickers,PB_FINAL_US, TV_FINAL_US, DEBT_FINAL_US, 
+         ASSET_FINAL_US, US_COMP_SEC) %>% 
+  rename("PB_Ratio" = "PB_FINAL_US",
+         "Average_Trading_Volume" = "TV_FINAL_US",
+         "Total_Debt" = "DEBT_FINAL_US",
+         "Total_Asset" = "ASSET_FINAL_US",
+         "Sector" = "US_COMP_SEC") %>% 
+  mutate(across(c("PB_Ratio","Average_Trading_Volume","Total_Debt", "Total_Asset"),
+                ~as.numeric(gsub(",", "", .)))) %>% 
+  mutate("Debt_Ratio" = Total_Debt / Total_Asset) %>% 
+  select(US_Tickers, US_Companies, Sector, PB_Ratio,
+         Average_Trading_Volume, Total_Debt, 
+         Total_Asset, Debt_Ratio)
+```
+
+```{r, eval=FALSE}
+JP_Tickers_File <- read_csv("JP_TICKERs_new.csv") %>% 
+  select("COMPANY NAME", "TICKER", "JP_COMSEC") %>% 
+  na.omit() 
+
+JP_URL <- JP_Tickers_File%>% 
+  mutate(JP_URL = 
+           JP_URL <- paste(
+  "https://finance.yahoo.com/quote/",
+  TICKER,
+  ".T/key-statistics?p=",
+  TICKER,".T",
+  sep = "")) %>% select(JP_URL)
+
+JP_Companies <- JP_Tickers_File %>% pull(`COMPANY NAME`)
+JP_Tickers <- JP_Tickers_File %>% pull(`TICKER`)
+JP_COMP_SEC <- JP_Tickers_File %>% pull(`JP_COMSEC`)
+
+PB_RATIO <- function(URL) {
+  page <- read_html(URL)
+  
+  pbs <- page %>%
+    html_nodes("td:contains('Price/Book (mrq)') + td") %>%
+    html_text()
+  
+  if (length(pbs) == 0) {
+    return("N/A")
+  } else {
+    return(pbs)
+  }
+}
+
+JP_URL <- JP_Tickers_URL %>% pull(JP_URL)
+
+JP_URL_TV <- paste(
+  "https://finance.yahoo.com/quote/",
+  JP_Tickers,
+  ".T?p=",
+  JP_Tickers,
+  ".T", 
+  sep = ""
+)
+
+JP_URL_DEBT_ASSET <- paste(
+  "https://finance.yahoo.com/quote/",
+  JP_Tickers,
+  ".T/balance-sheet?p=",
+  JP_Tickers,".T",
+  sep = ""
+)
+
+PB_FINAL_JP <- sapply(JP_URL, FUN = PB_RATIO)
+TV_FINAL_JP <- sapply(JP_URL_TV, FUN = Average_TV)
+DEBT_FINAL_JP <- sapply(JP_URL_DEBT_ASSET, FUN = Debt)
+Asset_FINAL_JP <- sapply(JP_URL_DEBT_ASSET, FUN = Asset)
+
+
+JP_FULLSTOCK <- data.frame(
+  JP_Companies = JP_Companies,
+  JP_Tickers = JP_Tickers,
+  PB_FINAL_JP = PB_FINAL_JP,
+  JP_COMP_SEC = JP_COMP_SEC,
+  TV_FINAL_JP = TV_FINAL_JP,
+  DEBT_FINAL_JP = DEBT_FINAL_JP,
+  Asset_FINAL_JP = Asset_FINAL_JP,
+  stringsAsFactors = FALSE
+) 
+
+row.names(JP_FULLSTOCK) <- NULL
+```
+
+```{r, eval=FALSE}
+JP_DATA <- JP_FULLSTOCK %>% 
+  select(JP_Companies, JP_Tickers,PB_FINAL_JP, TV_FINAL_JP, DEBT_FINAL_JP, 
+         Asset_FINAL_JP, JP_COMP_SEC) %>% 
+  rename("PB_Ratio" = "PB_FINAL_JP",
+         "Average_Trading_Volume" = "TV_FINAL_JP",
+         "Total_Debt" = "DEBT_FINAL_JP",
+         "Total_Asset" = "Asset_FINAL_JP",
+         "Sector" = "JP_COMP_SEC") %>% 
+  mutate(across(c("PB_Ratio","Average_Trading_Volume","Total_Debt", "Total_Asset"),
+                ~as.numeric(gsub(",", "", .)))) %>% 
+  mutate("Debt_Ratio" = Total_Debt / Total_Asset) %>% 
+  select(JP_Tickers, JP_Companies, Sector, PB_Ratio,
+         Average_Trading_Volume, Total_Debt, 
+         Total_Asset, Debt_Ratio)
+```
+
+\newpage
+
+# Appendix 2: Data Cleaning's Code
+
+```{r, eval=FALSE}
+# Update the NA Item in Sector
+US_Data <- US_Data %>%
+  mutate(
+    Sector = case_when(
+      is.na(Sector) & US_Companies %in% c("Blackstone Inc.") ~ "Finance",
+      is.na(Sector) &
+        US_Companies %in% c("Lululemon Athletica Inc.") ~ "Consumer Non-Durables",
+      is.na(Sector) &
+        US_Companies %in% c("Airbnb, Inc. Class A") ~ "Consumer Services",
+      is.na(Sector) &
+        US_Companies %in% c("Kenvue Inc.", "Cencora, Inc.") ~ "Health Services",
+      is.na(Sector) &
+        US_Companies %in% c("Veralto Corporation") ~ "Technology Services",
+      is.na(Sector) &
+        US_Companies %in% c("Hubbell Incorporated") ~ "Electronic Technology",
+      TRUE ~ as.character(Sector)
+    )
+  )
+```
+
+```{r, eval=FALSE}
+## Reclassify the Sector
+US_Data <- US_Data %>%
+  mutate(
+    Sector = case_when(
+      Sector %in% c("Energy Minerals") ~ "Energy",
+      Sector %in% c(
+        "Consumer Non-Durables",
+        "Consumer Services",
+        "Distribution Services"
+      ) ~ "Consumer Non-Durables & Services",
+      Sector %in% c("Finance") ~ "Financial Services & Real Estate Management",
+      Sector %in% c("Health Services", "Health Technology") ~ "Healthcare",
+      Sector %in% c("Technology Services", "Electronic Technology") ~ "Technology",
+      Sector %in% c(
+        "Industrial Services",
+        "Non-Energy Minerals",
+        "Process Industries",
+        "Producer Manufacturing"
+      ) ~ "Industrial Manufacturing & Processing",
+      Sector %in% c("Commercial Service") ~ "Commercial Services",
+      TRUE ~ as.character(Sector)
+    )
+  )
+
+US_Data <- US_Data %>%
+  mutate(Sector = ifelse(
+    US_Companies == "Comcast Corp",
+    "Consumer Non-Durables & Services",
+    ifelse(
+      US_Companies == "Boston Scientific Corp.",
+      "Healthcare",
+      ifelse(
+        US_Companies == "Cardinal Health, Inc",
+        "Healthcare",
+        ifelse(
+          US_Companies == "Genuine Parts Company",
+          "Industrial Manufacturing & Processing",
+          Sector)))))
+```
+
+```{r,eval=FALSE}
+## Typo
+JP_Data <- JP_Data %>%
+  mutate(
+    Sector = case_when(
+      Sector == "Heathcare" ~ "Healthcare",
+      Sector == "Teleom" ~ "Telecom",
+      Sector == "real Estate" ~ "Real Estate",
+      TRUE ~ Sector
+    )
+  )
+
+## Reclassify the Sector
+JP_Data <- JP_Data %>%
+  mutate(
+    Sector = case_when(
+      Sector %in% c("Banks", "Diversified Financials", "Insurance") ~ 
+        "Financial Services & Real Estate Management",
+      Sector %in% c("Telecom") ~ "Communications",
+      Sector %in% c("Automobiles") ~ "Consumer Durables",
+      Sector %in% c(
+        "Consumer Retail",
+        "Consumer Service",
+        "Food, Beverage, Tobacco",
+        "Media",
+        "Household"
+      ) ~ "Consumer Non-Durables & Services",
+      Sector %in% c("Finance", "Real Estate", "Real Estate Management") ~ 
+        "Financial Services & Real Estate Management",
+      Sector %in% c("Pharmaceuticals") ~ "Healthcare",
+      Sector %in% c("Tech", "Software", "Semicomductors") ~ "Technology",
+      Sector %in% c("Capital Goods", "Materials") ~ "Industrial Manufacturing & Processing",
+      Sector %in% c("Retail") ~ "Retail Trade",
+      Sector %in% c("Commercial Service") ~ "Commercial Services",
+      TRUE ~ as.character(Sector)
+    )
+  )
+
+JP_Data <- JP_Data %>%
+  mutate(Sector = ifelse(
+    JP_Companies == "Aisin",
+    "Industrial Manufacturing & Processing",
+    ifelse(
+      JP_Companies == "DENSO",
+      "Industrial Manufacturing & Processing",
+      ifelse(
+        JP_Companies == "Bridgestone",
+        "Industrial Manufacturing & Processing",
+        ifelse(
+          JP_Companies == "Sekisui Chemical",
+          "Industrial Manufacturing & Processing",
+          ifelse(
+            JP_Companies == "Sumitomo Forestry",
+            "Industrial Manufacturing & Processing",
+            ifelse(
+              JP_Companies == "Koito Manufacturing",
+              "Industrial Manufacturing & Processing",
+              ifelse(
+                JP_Companies == "Niterra",
+                "Industrial Manufacturing & Processing",
+                ifelse(
+                  JP_Companies == "Yokohama Rubbber Company",
+                  "Industrial Manufacturing & Processing",
+                  ifelse(
+                    JP_Companies == "Sumitomo Rubber Industries",
+                    "Industrial Manufacturing & Processing",
+                    ifelse(
+                      JP_Companies == "Toyo Tire",
+                      "Industrial Manufacturing & Processing",
+                      ifelse(
+                        JP_Companies == "Deccente",
+                        "Consumer Non-Durables & Services",
+                        ifelse(
+                          JP_Companies == "Rohto Pharmaceutical",
+                          "Healthcare",
+                          ifelse(
+                            JP_Companies == "BayCurrent Consulting",
+                            "Financial Services & Real Estate Management",
+                            ifelse(
+                              JP_Companies == "COSMOS Pharmaceutical",
+                              "Healthcare",
+                              ifelse(JP_Companies == "Kobayashi Phamaceutical", 
+                                     "Healthcare", Sector))))))))))))))))
+```
+
+\newpage
+
+# Appendix 3: Sector-Specific Table and Plot Codes
+
+```{r, eval=FALSE}
+## Average PB Ratio By Sector In 1) US
+US_average_PB <- US_Data %>%
+  group_by(Sector) %>%
+  drop_na(PB_Ratio) %>%
+  summarise('Average_PB' = mean(PB_Ratio)) %>%
+  arrange(desc(Average_PB)) 
+
+## Average PB Ratio By Sector In 2) JAPAN
+JP_average_PB <- JP_Data %>%
+  group_by(Sector) %>%
+  drop_na(PB_Ratio) %>%
+  summarise('Average_PB' = mean(PB_Ratio)) %>%
+  arrange(desc(Average_PB))
+
+## Merge Table Average PB Ratio By Sector
+merged_USJP <- merge(US_average_PB, JP_average_PB, by = 'Sector') %>%
+  arrange(desc(Average_PB.x))
+col_names <- c("Sector", "US P/B Ratio", "JP P/B Ratio")
+merged_USJP %>%  kable(caption = 'Average P/B Ratio Across Sectors', 
+                       digits = 3,
+                       booktabs = TRUE,
+                       format.args = list(big.mark = ','), linesep = '',
+                       col.names = col_names)
+```
+
+```{r,eval=FALSE}
+JP_plot <- ggplot(data = JP_average_PB, aes(x = Average_PB, y = Sector, fill = Sector)) +
+  geom_bar(stat = "identity") + 
+  labs(x = "Average P/B Ratio in Japan", y = "Sector") +
+  theme(legend.position = "none") 
+
+US_plot <- ggplot(data = US_average_PB, aes(x = Average_PB, y = Sector, fill = Sector)) +
+  geom_bar(stat = "identity") + 
+  labs(x = "Average P/B Ratio in US", y = "Sector") +
+  theme(legend.position = "none")
+
+JP_plot / US_plot + plot_layout(guides = 'collect')
+```
+
+\newpage
+
+# Appendix 4: Full Regression Output
+
+```{r}
+## Run Regression - US by sector
+US_sector_models <- US_Data %>%
+  group_by(Sector) %>%
+  nest() %>%
+  mutate(
+    model = map(data, ~lm(PB_Ratio ~ Total_Asset + Total_Debt 
+                          + Average_Trading_Volume, data = .)),
+    model_summary = map(model, tidy),
+    sector_name = Sector  # Add a new column for sector name
+  ) %>%
+  select(sector_name, model_summary) %>%
+  mutate(
+    model_summary = map2(sector_name, model_summary, 
+                         ~mutate(.y, p.value = sprintf("%.3e", p.value), Sector = .x))
+  )
+
+print(US_sector_models$model_summary)
+```
+
+\newpage
+
+```{r}
+## Run Regression - JP by sector
+JP_sector_models <- JP_Data %>%
+  group_by(Sector) %>%
+  nest() %>%
+  mutate(
+    model = map(data, ~lm(PB_Ratio ~ Total_Asset + Total_Debt 
+                          + Average_Trading_Volume, data = .)),
+    model_summary = map(model, tidy),
+    sector_name = Sector  # Add a new column for sector name
+  ) %>%
+  select(sector_name, model_summary) %>%
+  mutate(
+    model_summary = map2(sector_name, model_summary, 
+                         ~mutate(.y, p.value = sprintf("%.3e", p.value), Sector = .x))
+  )
+
+print(JP_sector_models$model_summary)
+```
+
+
+
+
